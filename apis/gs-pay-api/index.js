@@ -4,7 +4,7 @@ const xml2js = require('xml2js');
 var parser = new xml2js.Parser();
 
 const app = express();
-const port = 8080;
+const port = 3000;
 
 async function getXMLfromURL(url) {
 	try {
@@ -12,20 +12,25 @@ async function getXMLfromURL(url) {
 		const content = await response.text();
 		const data = await parser.parseStringPromise(content);
 		return data;
-	} catch (e) {
-		console.log({e})
+	} catch (err) {
+		console.log(err)
 	}
 }
 
+const localities = [{GS: {}}, {AL: {}}, {AQ: {}}, {ATL: {}}, {AU: {}}, {BH: {}}, {BOS: {}}, {BU: {}}, {BN: {}}, {CT: {}}, {CHI: {}}, {CIN: {}}, {CLE: {}}, {CS: {}}, {COL: {}}, {CC: {}}, {DFW: {}}, {DV:{}}, {DAY:{}}, {DEN: {}}, {DM: {}}, {DET: {}}, {HB: {}}, {HAR: {}}, {HOU: {}}, {HNT: {}}, {IND: {}}, {KC: {}}, {LR: {}}, {LV: {}}, {LA: {}}, {MFL: {}}, {MIL: {}}, {MSP: {}}, {NY: {}}, {OM: {}}, {PB: {}}, {PHL: {}}, {PX: {}}, {PIT: {}}, {POR: {}}, {RA: {}}, {RCH: {}}, {SAC: {}}, {SO: {}}, {SD: {}}, {SF: {}}, {SEA: {}}, {SL: {}}, {TU: {}}, {VB: {}}, {DCB: {}}, {RUS: {}}, {AK: {}}, {HI: {}}];
 
-const localities = ["GS", "AL", "AQ", "ATL", "AU", "BH", "BOS", "BU", "BN", "CT", "CHI", "CIN", "CLE", "CS", "COL", "CC", "DFW", "DV", "DAY", "DEN", "DM", "DET", "HB", "HAR", "HOU", "HNT", "IND", "KC", "LR", "LV", "LA", "MFL", "MIL", "MSP", "NY", "OM", "PB", "PHL", "PX", "PIT", "POR", "RA", "RCH", "SAC", "SO", "SD", "SF", "SEA", "SL", "TU", "VB", "DCB", "RUS", "AK", "HI"];
-
-app.get('/locality/:locality/grade/:grade/step/:step', async (req, res) => {
+app.get('/locality=:locality&grade=:grade&step=:step', async (req, res) => {
 	let locality = req.params.locality;
 	let grade = parseInt(parseInt(req.params.grade))-1;
 	let step = parseInt(req.params.step)-1;
-	
-	if(!localities.includes(locality)) {
+
+	let found = false;
+	for(let i = 0; i < localities.length; i++) {
+		if(Object.keys(localities[i])[0] == locality) {
+			found = true;
+		}
+	}
+	if(!found) {
 		res.status(400)
   		res.send({"error": "invalid locality"});
 	}
@@ -38,7 +43,14 @@ app.get('/locality/:locality/grade/:grade/step/:step', async (req, res) => {
 		res.send({"error": "invalid step"});
 	}
 	else {
-		let data = JSON.parse(JSON.stringify(await getXMLfromURL(`https://www.opm.gov/policy-data-oversight/pay-leave/salaries-wages/salary-tables/xml/2023/${req.params.locality}.xml`)));
+		let data = localities[locality];
+
+		if(data == null) {
+			localities[locality] = JSON.stringify(await getXMLfromURL(`https://www.opm.gov/policy-data-oversight/pay-leave/salaries-wages/salary-tables/xml/2023/${locality}.xml`));
+			data = localities[locality];
+		}
+
+		data = JSON.parse(data);
 
 		let annual = parseFloat(data.PayTable.Grades[0].Grade[grade].Steps[0].Step[step].Annual[0]);
 		let hourly = parseFloat(data.PayTable.Grades[0].Grade[grade].Steps[0].Step[step].Hourly[0])
@@ -53,6 +65,8 @@ app.listen(port, () => {
 });
 
 /*
+	LOCALITIES
+
 	GS - General Schedule (Base)
 	AL - ALBANY-SCHENECTADY, NY-MA
 	AQ - ALBUQUERQUE-SANTA FE-LAS VEGAS, NM
